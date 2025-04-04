@@ -4,7 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "server": "node --watch src/server/server-fruta.js"
+    "server": "nodemon src/server/server-fruta.js"
   },
   "keywords": [],
   "author": "",
@@ -20,10 +20,12 @@
     "ini": "^5.0.0",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.13.0",
+    "nodemon": "^3.1.9",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "pg": "^8.14.1",
-    "prettier": "^3.5.3"
+    "prettier": "^3.5.3",
+    "socket.io": "^4.8.1"
   }
 }

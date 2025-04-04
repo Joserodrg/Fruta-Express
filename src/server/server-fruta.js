@@ -6,16 +6,20 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { authenticateToken } from "../middlewares/isAuthenticated.js";
 import pkg from "pg";
 const { Client } = pkg;
+import http from "http";
 
 import dotenv from "dotenv";
+import setupChat from "../chat/chat.js";
 
 const app = express();
+const server = http.createServer(app);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 dotenv.config();
 
 const PORT = 5001;
+const PORT_SOCKET = 5002;
 
 const db = new Client({
   host: "localhost",
@@ -28,23 +32,23 @@ db.connect()
   .then(() => console.log("Conexion Exitosa"))
   .catch((err) => console.log("Error de conexión", err));
 
+setupChat(server);
+
 // Estrategia de Passport para autenticar el usuario
 passport.use(
   new LocalStrategy((username, password, done) => {
     db.query(
-      "SELECT * FROM users WHERE username = $1", // Cambié ? por $1
+      "SELECT * FROM users WHERE username = $1",
       [username],
       (err, result) => {
         if (err) return done(err);
         if (result.rows.length === 0) {
-          // Cambié result.length por result.rows.length
           console.log("Usuario no encontrado");
           return done(null, false, { message: "Usuario no encontrado" });
         }
 
-        const user = result.rows[0]; // Cambié result[0] por result.rows[0]
+        const user = result.rows[0];
 
-        // Verificar si las contraseñas coinciden
         if (password !== user.password) {
           console.log("Contraseña incorrecta");
           return done(null, false, { message: "Contraseña Incorrecta" });
@@ -66,7 +70,7 @@ passport.deserializeUser((id, done) => {
   db.query("SELECT * FROM users WHERE id = $1", [id], (err, result) => {
     // Cambié ? por $1
     if (err) return done(err);
-    done(null, result.rows[0]); // Cambié result[0] por result.rows[0]
+    done(null, result.rows[0]);
   });
 });
 
@@ -77,9 +81,9 @@ app.post(
   "/login",
   passport.authenticate("local", { session: false }),
   (req, res) => {
-    const user = req.user; // `user` viene del Passport si la autenticación fue exitosa
+    const user = req.user; // user viene del Passport si la autenticación fue exitosa
 
-    // Generar un JWT tras la autenticación exitosa
+    //JWT tras la autenticación exitosa
     const token = jwt.sign({ userId: user.id }, process.env.SECRET_KEY, {
       expiresIn: "1h",
     });
@@ -109,25 +113,23 @@ app.get("/productos/:id", (req, res) => {
   const { id } = req.params;
 
   db.query("SELECT * FROM productos WHERE id = $1", [id], (err, result) => {
-    // Cambié ? por $1
     if (err) {
       console.error("Error en la consulta SQL", err);
       return res.status(500).send("No se pudo realizar la consulta");
     }
 
     if (result.rows.length === 0) {
-      // Cambié result.length por result.rows.length
       return res.status(404).json({ error: "Producto no encontrado" });
     }
 
-    res.json(result.rows[0]); // Cambié result[0] por result.rows[0]
+    res.json(result.rows[0]);
   });
 });
 
 app.post("/productos", (req, res) => {
   const { nombre, tipo, precio, stock, fecha_ingreso } = req.body;
 
-  // Verificar que todos los campos estén presentes
+  // manera de verificar que todos los campos estén presentes
   if (!nombre || !tipo || !precio || !stock) {
     return res.status(400).json({ error: "Faltan campos obligatorios" });
   }
@@ -137,7 +139,7 @@ app.post("/productos", (req, res) => {
 
   db.query(
     `INSERT INTO productos (nombre, tipo, precio, stock, fecha_ingreso) 
-     VALUES ($1, $2, $3, $4, $5) RETURNING id`, // Cambié ? por $1, $2, $3...
+     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
     [nombre, tipo, precio, stock, fechaIngreso],
     (err, result) => {
       if (err) {
@@ -149,20 +151,17 @@ app.post("/productos", (req, res) => {
       }
       res.status(201).json({
         message: "Producto añadido con éxito",
-        id: result.rows[0].id, // Cambié result.insertId por result.rows[0].id
+        id: result.rows[0].id,
       });
     }
   );
 });
 
-// Ruta PUT para actualizar un producto
 app.put("/productos/:id", (req, res) => {
   const { id } = req.params;
   const { nombre, tipo, precio, stock, fecha_ingreso } = req.body;
 
-  // Verificar si el producto existe
   db.query("SELECT * FROM productos WHERE id = $1", [id], (err, result) => {
-    // Cambié ? por $1
     if (err) {
       console.error("Error en la consulta SQL:", err);
       return res.status(500).json({
@@ -172,7 +171,6 @@ app.put("/productos/:id", (req, res) => {
     }
 
     if (result.rows.length === 0) {
-      // Cambié result.length por result.rows.length
       return res.status(404).json({ message: "Producto no encontrado" });
     }
 
@@ -218,4 +216,7 @@ app.delete("/productos/:id", (req, res) => {
 
 app.listen(PORT, () => {
   console.log("Server Listening on PORT:", PORT);
+  server.listen(PORT_SOCKET, () => {
+    console.log(`Socket.IO server running at http://localhost:${PORT_SOCKET}`);
+  });
 });

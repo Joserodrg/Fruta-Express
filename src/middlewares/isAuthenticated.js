@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 export const authenticateToken = (req, res, next) => {
+  // split(" ")[1] separa el string "Bearer <token>" y obtiene solo la parte <token>
   const token = req.header("Authorization")?.split(" ")[1];
 
   if (!token) {
